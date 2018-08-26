@@ -30,10 +30,11 @@ RET=$(curl -s -o /dev/null -w "%{http_code}" $URL)
 
 # If http return code is 200 (OK) continue ...
 if [ "$RET" == "200" ]; then
-  # Get alerts and hostnames from alert manager api (json). Use § as separator between alertname and hostname
+  # Get alerts and hostnames from alert manager api (json). Use § as separator between alertname and hostname.
+  # Only monitor alerts with active state but not suppressed/silenced.
   DATA=$(curl -s $URL)
-  ALERTS=$(echo $DATA | jq '.data[].labels | "\(.alertname)§\(.hostname)"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
-  HOSTS=$(echo $DATA | jq '.data[].labels | "\(.hostname)§\(.alertname)"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.hostname)§\(.status.state)"' | grep '§active"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.hostname)§\(.labels.alertname)§\(.status.state)"' | grep '§active"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
   # Count the number of alerts
   ALERTCOUNT=$(echo "$ALERTS" | wc -l)
 
@@ -53,14 +54,16 @@ if [ "$RET" == "200" ]; then
       # Get alert name and host
       HOSTNAME=$(echo $HOST | awk -F '§' '{print $1}')
       ALERTNAME=$(echo $HOST | awk -F '§' '{print $2}')
- 
-      # Print the hostname if it changed since the last iteration 
-      if [ "$HOSTNAME" != "$LASTHOSTNAME" ]; then
-        echo "-- :computer: $HOSTNAME"
-      fi
 
-      # Print the alert
-      echo "-- $ALERTNAME | size=8"
+      if [ "$HOSTNAME" != "null" ]; then
+        # Print the hostname if it changed since the last iteration 
+        if [ "$HOSTNAME" != "$LASTHOSTNAME" ]; then
+          echo "-- :computer: $HOSTNAME"
+        fi
+
+        # Print the alert
+        echo "-- $ALERTNAME | size=8"
+      fi
     done
 
     # Now create the list of alerts
@@ -76,8 +79,10 @@ if [ "$RET" == "200" ]; then
         echo "$ALERTNAME"
       fi
 
-      # Print the host and set the command to create an ssh connection when clicking on it
-      echo "-- :computer: $HOST | bash='/usr/bin/gnome-terminal -- ssh root@$HOST' terminal=false"
+      if [ "$HOST" != "null" ]; then
+        # Print the host and set the command to create an ssh connection when clicking on it
+        echo "-- :computer: $HOST | bash='/usr/bin/gnome-terminal -- ssh root@$HOST' terminal=false"
+      fi
     done
   # ... else print no alerts and use different icon color
   else
