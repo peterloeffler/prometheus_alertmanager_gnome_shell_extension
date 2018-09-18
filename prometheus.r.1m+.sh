@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
-# URL to prometheus alert manager api
-URL="http://localhost:9093/api/v1/alerts"
+# Prometheus Alertmanager URL
+URL="http://prd-prometheus-server:9093"
+# URL to Prometheus Alertmanager API
+API="$URL/api/v1/alerts"
+# Your favorite web browser
+BROWSER=/usr/bin/google-chrome-stable
 
 # Image for the gnome shell extension icon (SVG)
 IMG='
@@ -26,28 +30,36 @@ IMG='
 '
 
 # Get http return code of alert manager call
-RET=$(curl -s -o /dev/null -w "%{http_code}" $URL)
+RET=$(curl -s -o /dev/null -w "%{http_code}" $API)
+
 
 # If http return code is 200 (OK) continue ...
 if [ "$RET" == "200" ]; then
   # Get alerts and hostnames from alert manager api (json). Use § as separator between alertname and hostname.
   # Only monitor alerts with active state but not suppressed/silenced.
-  DATA=$(curl -s $URL)
+  DATA=$(curl -s $API)
   ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.hostname)§\(.status.state)"' | grep '§active"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
   HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.hostname)§\(.labels.alertname)§\(.status.state)"' | grep '§active"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
   # Count the number of alerts
   ALERTCOUNT=$(echo "$ALERTS" | wc -l)
 
   # If the number of alerts is not 0 the display them ...
-  if [ $ALERTCOUNT -ne 0 ]; then
+  if [ $ALERTCOUNT -ne 0 ] && [ "$ALERTS" != "" ]; then
     # Use icon color for alerts
     ICON="image='$(echo $IMG | sed 's/§COLOR§/#e5512b/g' | base64 -w 0)'"
     # Print the number of alerts
     echo "$ALERTCOUNT alerts | $ICON"
     echo "---"
 
+    # Link to the Alertmanager
+    echo "GO TO ALERTMANAGER | bash='$BROWSER $URL' terminal=false size=14"
+
     # Create the list of hosts
-    echo "HOSTS:"
+    if [ $(echo "$HOSTS" | grep -v null | wc -l) -gt 0 ]; then
+      echo "HOSTS | size=14"
+    fi
+    HOSTNAME=""
+    ALERTNAME=""
     for HOST in $HOSTS; do
       # Save last hostname for next iteration
       LASTHOSTNAME=$HOSTNAME
@@ -58,7 +70,7 @@ if [ "$RET" == "200" ]; then
       if [ "$HOSTNAME" != "null" ]; then
         # Print the hostname if it changed since the last iteration 
         if [ "$HOSTNAME" != "$LASTHOSTNAME" ]; then
-          echo "-- :computer: $HOSTNAME"
+          echo "-- :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false"
         fi
 
         # Print the alert
@@ -67,21 +79,24 @@ if [ "$RET" == "200" ]; then
     done
 
     # Now create the list of alerts
+    echo "ALERTS | size=14"
+    HOSTNAME=""
+    ALERTNAME=""
     for ALERT in $ALERTS; do
       # Save last alert name for next iteration
       LASTALERTNAME=$ALERTNAME
       # Get alert name and host
       ALERTNAME=$(echo $ALERT | awk -F '§' '{print $1}')
-      HOST=$(echo $ALERT | awk -F '§' '{print $2}')
+      HOSTNAME=$(echo $ALERT | awk -F '§' '{print $2}')
  
       # Print the alert name if it changed since the last iteration 
       if [ "$ALERTNAME" != "$LASTALERTNAME" ]; then
         echo "$ALERTNAME"
       fi
 
-      if [ "$HOST" != "null" ]; then
+      if [ "$HOSTNAME" != "null" ]; then
         # Print the host and set the command to create an ssh connection when clicking on it
-        echo "-- :computer: $HOST | bash='/usr/bin/gnome-terminal -- ssh root@$HOST' terminal=false"
+        echo "-- :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false size=8"
       fi
     done
   # ... else print no alerts and use different icon color
