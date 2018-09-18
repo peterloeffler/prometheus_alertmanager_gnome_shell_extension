@@ -52,11 +52,11 @@ if [ "$RET" == "200" ]; then
     echo "---"
 
     # Link to the Alertmanager
-    echo "GO TO ALERTMANAGER | bash='$BROWSER $URL' terminal=false size=14"
+    echo -e "\e[1mGO TO ALERTMANAGER | bash='$BROWSER $URL' terminal=false"
 
     # Create the list of hosts
     if [ $(echo "$HOSTS" | grep -v null | wc -l) -gt 0 ]; then
-      echo "HOSTS | size=14"
+      echo -e "\e[1mHOSTS"
     fi
     HOSTNAME=""
     ALERTNAME=""
@@ -79,7 +79,7 @@ if [ "$RET" == "200" ]; then
     done
 
     # Now create the list of alerts
-    echo "ALERTS | size=14"
+    echo -e "\e[1mALERTS"
     HOSTNAME=""
     ALERTNAME=""
     for ALERT in $ALERTS; do
