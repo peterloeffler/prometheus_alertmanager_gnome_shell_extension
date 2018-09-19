@@ -56,7 +56,7 @@ if [ "$RET" == "200" ]; then
 
     # Create the list of hosts
     if [ $(echo "$HOSTS" | grep -v null | wc -l) -gt 0 ]; then
-      echo -e "\e[1mHOSTS"
+      echo -e "\e[1mBY HOST"
     fi
     HOSTNAME=""
     ALERTNAME=""
@@ -70,16 +70,16 @@ if [ "$RET" == "200" ]; then
       if [ "$HOSTNAME" != "null" ]; then
         # Print the hostname if it changed since the last iteration 
         if [ "$HOSTNAME" != "$LASTHOSTNAME" ]; then
-          echo "-- :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false"
+          echo "--  :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false"
         fi
 
         # Print the alert
-        echo "-- $ALERTNAME | size=8"
+        echo "--     $ALERTNAME | size=8"
       fi
     done
 
     # Now create the list of alerts
-    echo -e "\e[1mALERTS"
+    echo -e "\e[1mBY ALERT"
     HOSTNAME=""
     ALERTNAME=""
     for ALERT in $ALERTS; do
@@ -96,7 +96,7 @@ if [ "$RET" == "200" ]; then
 
       if [ "$HOSTNAME" != "null" ]; then
         # Print the host and set the command to create an ssh connection when clicking on it
-        echo "-- :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false size=8"
+        echo "--  :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false size=8"
       fi
     done
   # ... else print no alerts and use different icon color
