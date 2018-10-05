@@ -38,8 +38,8 @@ if [ "$RET" == "200" ]; then
   # Get alerts and hostnames from alert manager api (json). Use § as separator between alertname and hostname.
   # Only monitor alerts with active state but not suppressed/silenced.
   DATA=$(curl -s $API)
-  ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.hostname)§\(.status.state)"' | grep '§active"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
-  HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.hostname)§\(.labels.alertname)§\(.status.state)"' | grep '§active"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.hostname)§\(.status.state)§\(.labels)§"' | grep '§active§' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.hostname)§\(.labels.alertname)§\(.status.state)§"' | grep '§active§' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
   # Count the number of alerts
   ALERTCOUNT=$(echo "$ALERTS" | wc -l)
 
@@ -60,7 +60,7 @@ if [ "$RET" == "200" ]; then
     fi
     HOSTNAME=""
     ALERTNAME=""
-    for HOST in $HOSTS; do
+    while IFS= read -r HOST; do
       # Save last hostname for next iteration
       LASTHOSTNAME=$HOSTNAME
       # Get alert name and host
@@ -76,18 +76,19 @@ if [ "$RET" == "200" ]; then
         # Print the alert
         echo "--     $ALERTNAME | size=8"
       fi
-    done
+    done <<< "$HOSTS"
 
     # Now create the list of alerts
     echo -e "\e[1mBY ALERT"
     HOSTNAME=""
     ALERTNAME=""
-    for ALERT in $ALERTS; do
+    while IFS= read -r ALERT; do
       # Save last alert name for next iteration
       LASTALERTNAME=$ALERTNAME
       # Get alert name and host
       ALERTNAME=$(echo $ALERT | awk -F '§' '{print $1}')
       HOSTNAME=$(echo $ALERT | awk -F '§' '{print $2}')
+      LABELS=$(echo $ALERT | awk -F '§' '{print $4}')
  
       # Print the alert name if it changed since the last iteration 
       if [ "$ALERTNAME" != "$LASTALERTNAME" ]; then
@@ -97,8 +98,10 @@ if [ "$RET" == "200" ]; then
       if [ "$HOSTNAME" != "null" ]; then
         # Print the host and set the command to create an ssh connection when clicking on it
         echo "--  :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false size=8"
+      else
+        echo "--  $LABELS | size=8" | sed 's/\\",\\"/, /g' | sed 's/"//g' | sed 's/{//g' | sed 's/}//g'
       fi
-    done
+    done <<< "$ALERTS"
   # ... else print no alerts and use different icon color
   else
     ICON="image='$(echo $IMG | sed 's/§COLOR§/#5eb220/g' | base64 -w 0)'"
