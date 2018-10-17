@@ -9,7 +9,7 @@ HOSTLABEL="instance"
 # Decide if you only want active alerts to be displayed or also the silenced.
 ACTIVEONLY=true
 # Your favorite web browser
-BROWSER=/usr/bin/google-chrome-stable
+BROWSER=/usr/bin/firefox
 
 # Image for the gnome shell extension icon (SVG)
 IMG='
