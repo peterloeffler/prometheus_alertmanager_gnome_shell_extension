@@ -57,7 +57,8 @@ if [ "$RET" == "200" ]; then
     # Use icon color for alerts
     ICON="image='$(echo $IMG | sed 's/§COLOR§/#e5512b/g' | base64 -w 0)'"
     # Print the number of alerts
-    echo "$ALERTCOUNT alerts | $ICON"
+    [[ $ALERTCOUNT -gt 1 ]] && P="s" || P=""
+    echo "$ALERTCOUNT alert$P | $ICON"
     echo "---"
 
     # Link to the Alertmanager
