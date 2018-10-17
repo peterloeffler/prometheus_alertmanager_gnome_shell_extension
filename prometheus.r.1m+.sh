@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
 # Prometheus Alertmanager URL
-URL="http://prd-prometheus-server:9093"
+URL="http://localhost:9093"
 # URL to Prometheus Alertmanager API
 API="$URL/api/v1/alerts"
+# The label you want to use to identify your hosts. Default is instance.
+HOSTLABEL="instance"
+# Decide if you only want active alerts to be displayed or also the silenced.
+ACTIVEONLY=true
 # Your favorite web browser
 BROWSER=/usr/bin/google-chrome-stable
 
@@ -38,8 +42,13 @@ if [ "$RET" == "200" ]; then
   # Get alerts and hostnames from alert manager api (json). Use § as separator between alertname and hostname.
   # Only monitor alerts with active state but not suppressed/silenced.
   DATA=$(curl -s $API)
-  ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.hostname)§\(.status.state)§\(.labels)§"' | grep '§active§' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
-  HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.hostname)§\(.labels.alertname)§\(.status.state)§"' | grep '§active§' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  if [ "$ACTIVEONLY" == "true" ]; then
+    ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.'$HOSTLABEL')§\(.status.state)§\(.labels)§"' | grep '§active§' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+    HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.'$HOSTLABEL')§\(.labels.alertname)§\(.status.state)§"' | grep '§active§' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  else
+    ALERTS=$(echo $DATA | jq '.data[] | "\(.labels.alertname)§\(.labels.'$HOSTLABEL')§\(.status.state)§\(.labels)§"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+    HOSTS=$(echo $DATA | jq '.data[] | "\(.labels.'$HOSTLABEL')§\(.labels.alertname)§\(.status.state)§"' | sed 's/^"//g' | sed 's/"$//g' | sort -u)
+  fi
   # Count the number of alerts
   ALERTCOUNT=$(echo "$ALERTS" | wc -l)
 
@@ -58,19 +67,19 @@ if [ "$RET" == "200" ]; then
     if [ $(echo "$HOSTS" | grep -v null | wc -l) -gt 0 ]; then
       echo -e "\e[1mBY HOST"
     fi
-    HOSTNAME=""
+    INSTANCENAME=""
     ALERTNAME=""
     while IFS= read -r HOST; do
       # Save last hostname for next iteration
-      LASTHOSTNAME=$HOSTNAME
+      LASTINSTANCENAME=$INSTANCENAME
       # Get alert name and host
-      HOSTNAME=$(echo $HOST | awk -F '§' '{print $1}')
+      INSTANCENAME=$(echo $HOST | awk -F '§' '{print $1}')
       ALERTNAME=$(echo $HOST | awk -F '§' '{print $2}')
 
-      if [ "$HOSTNAME" != "null" ]; then
+      if [ "$INSTANCENAME" != "null" ]; then
         # Print the hostname if it changed since the last iteration 
-        if [ "$HOSTNAME" != "$LASTHOSTNAME" ]; then
-          echo "--  :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false"
+        if [ "$INSTANCENAME" != "$LASTINSTANCENAME" ]; then
+          echo "--  :computer: $INSTANCENAME | bash='/usr/bin/gnome-terminal -- ssh root@$INSTANCENAME' terminal=false"
         fi
 
         # Print the alert
@@ -80,14 +89,14 @@ if [ "$RET" == "200" ]; then
 
     # Now create the list of alerts
     echo -e "\e[1mBY ALERT"
-    HOSTNAME=""
+    INSTANCENAME=""
     ALERTNAME=""
     while IFS= read -r ALERT; do
       # Save last alert name for next iteration
       LASTALERTNAME=$ALERTNAME
       # Get alert name and host
       ALERTNAME=$(echo $ALERT | awk -F '§' '{print $1}')
-      HOSTNAME=$(echo $ALERT | awk -F '§' '{print $2}')
+      INSTANCENAME=$(echo $ALERT | awk -F '§' '{print $2}')
       LABELS=$(echo $ALERT | awk -F '§' '{print $4}')
  
       # Print the alert name if it changed since the last iteration 
@@ -95,11 +104,11 @@ if [ "$RET" == "200" ]; then
         echo "$ALERTNAME"
       fi
 
-      if [ "$HOSTNAME" != "null" ]; then
+      if [ "$INSTANCENAME" != "null" ]; then
         # Print the host and set the command to create an ssh connection when clicking on it
-        echo "--  :computer: $HOSTNAME | bash='/usr/bin/gnome-terminal -- ssh root@$HOSTNAME' terminal=false size=8"
+        echo "--  :computer: $INSTANCENAME | bash='/usr/bin/gnome-terminal -- ssh root@$INSTANCENAME' terminal=false size=8"
       else
-        echo "--  $LABELS | size=8" | sed 's/\\",\\"/, /g' | sed 's/"//g' | sed 's/{//g' | sed 's/}//g'
+        echo "--  $LABELS | size=8" | sed 's/\\",\\"/, /g' |  sed 's/\\":\\"/: /g' | sed 's/\\"//g' | sed 's/{//g' | sed 's/}//g'
       fi
     done <<< "$ALERTS"
   # ... else print no alerts and use different icon color
@@ -107,7 +116,8 @@ if [ "$RET" == "200" ]; then
     ICON="image='$(echo $IMG | sed 's/§COLOR§/#5eb220/g' | base64 -w 0)'"
     echo "| $ICON"
     echo "---"
-    echo "no alerts"
+    # Link to the Alertmanager
+    echo -e "\e[1mGO TO ALERTMANAGER | bash='$BROWSER $URL' terminal=false"
   fi
 # ... else display conneciton error and use different icon color
 else
