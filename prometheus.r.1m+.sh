@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 
+# You can configure the following variables in the file ~/.argos_prometheus.conf
+[[ -f ~/.argos_prometheus.conf ]] && source ~/.argos_prometheus.conf
+
 # Prometheus Alertmanager URL
-URL="http://localhost:9093"
+[[ "$URL" == "" ]] && URL="http://localhost:9093"
 # URL to Prometheus Alertmanager API
-API="$URL/api/v1/alerts"
+[[ "$API" == "" ]] && API="$URL/api/v1/alerts"
 # The label you want to use to identify your hosts. Default is instance.
-HOSTLABEL="instance"
+[[ "$HOSTLABEL" == "" ]] && HOSTLABEL="instance"
 # Decide if you only want active alerts to be displayed or also the silenced.
-ACTIVEONLY=true
+[[ "$ACTIVEONLY" == "" ]] && ACTIVEONLY=true
 # Your favorite web browser
-BROWSER=/usr/bin/firefox
+[[ "$BROWSER" == "" ]] && BROWSER=/usr/bin/firefox
 
 # Image for the gnome shell extension icon (SVG)
 IMG='
