@@ -13,6 +13,8 @@
 [[ "$ACTIVEONLY" == "" ]] && ACTIVEONLY=true
 # Your favorite web browser
 [[ "$BROWSER" == "" ]] && BROWSER=/usr/bin/firefox
+# Command to execute when you click on an instance
+[[ "$INSTANCE_CMD" == "" ]] && INSTANCE_CMD=""
 
 # Image for the gnome shell extension icon (SVG)
 IMG='
@@ -35,6 +37,13 @@ IMG='
 </g>
 </svg>
 '
+
+# Create command to be executed when clicking on instance
+function instanceCmd {
+  if [ "$INSTANCE_CMD" != "" ]; then
+    echo $INSTANCE_CMD | sed "s/§INSTANCE§/$1/g"
+  fi
+}
 
 # Get http return code of alert manager call
 RET=$(curl -s -o /dev/null -w "%{http_code}" $API)
@@ -83,7 +92,7 @@ if [ "$RET" == "200" ]; then
       if [ "$INSTANCENAME" != "null" ]; then
         # Print the hostname if it changed since the last iteration 
         if [ "$INSTANCENAME" != "$LASTINSTANCENAME" ]; then
-          echo "--  :computer: $INSTANCENAME | bash='/usr/bin/gnome-terminal -- ssh root@$INSTANCENAME' terminal=false"
+          echo "--  :computer: $INSTANCENAME | $(instanceCmd $INSTANCENAME)"
         fi
 
         # Print the alert
@@ -110,7 +119,7 @@ if [ "$RET" == "200" ]; then
 
       if [ "$INSTANCENAME" != "null" ]; then
         # Print the host and set the command to create an ssh connection when clicking on it
-        echo "--  :computer: $INSTANCENAME | bash='/usr/bin/gnome-terminal -- ssh root@$INSTANCENAME' terminal=false size=8"
+        echo "--  :computer: $INSTANCENAME | $(instanceCmd $INSTANCENAME) size=8"
       else
         echo "--  $LABELS | size=8" | sed 's/\\",\\"/, /g' |  sed 's/\\":\\"/: /g' | sed 's/\\"//g' | sed 's/{//g' | sed 's/}//g'
       fi
@@ -130,3 +139,5 @@ else
   echo "---"
   echo "connection error"
 fi
+
+
